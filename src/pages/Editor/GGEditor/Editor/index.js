@@ -1,7 +1,7 @@
 import React from 'react';
 // 引入编辑器组件
 import moment from 'moment';
-import { Input, Radio, Switch, DatePicker, Upload, Icon, message, Button } from 'antd';
+import { Input, Radio, Switch, DatePicker, Upload, Icon, message, Button, Form } from 'antd';
 import BraftEditor from 'braft-editor';
 // 引入编辑器样式
 import 'braft-editor/dist/index.css';
@@ -10,6 +10,8 @@ import { FormattedMessage } from 'umi-plugin-react/locale';
 import PageHeaderWrapper from '@/components/PageHeaderWrapper';
 import styles from './index.less';
 import axios from 'axios';
+import router from 'umi/router';
+import { ServerRoot } from '@/utils/constants';
 
 const { RangePicker } = DatePicker;
 const fetchEditorContent = state => {
@@ -23,12 +25,20 @@ const fetchEditorContent = state => {
   }, 1000);
 };
 
-const saveEditorContent = state => {
-  axios
-    .post('/api/webInfo/add', state, { headers: { 'Content-Type': 'application/json' } })
-    .then(res => {
-      console.log(res);
-    });
+const saveEditorContent = async state => {
+  return await axios.post(`${ServerRoot}webInfo/add`, state, {
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
+const getTypeName = async () => {
+  const data = {
+    pageNo: 1,
+    pageSize: 10,
+  };
+  return await axios.post(`${ServerRoot}webInfoType/findList`, data, {
+    headers: { 'Content-Type': 'application/json' },
+  });
 };
 
 const getBase64 = (img, callback) => {
@@ -40,11 +50,11 @@ const getBase64 = (img, callback) => {
 const beforeUpload = file => {
   const isJPG = file.type === 'image/jpeg';
   if (!isJPG) {
-    message.error('You can only upload JPG file!');
+    message.error('你只能上传JPG文件！');
   }
   const isLt2M = file.size / 1024 / 1024 < 2;
   if (!isLt2M) {
-    message.error('Image must smaller than 2MB!');
+    message.error('图像必须小于2MB！');
   }
   return isJPG && isLt2M;
 };
@@ -58,7 +68,7 @@ export default class PressRelease extends React.Component {
   state = {
     // 创建一个空的editorState作为初始值
     title: '',
-    type: '',
+    type: 1,
     content: BraftEditor.createEditorState(null),
     imgUrl: '',
     topSign: 0,
@@ -67,6 +77,7 @@ export default class PressRelease extends React.Component {
     infoDate: '',
     sort: 1,
     loading: false,
+    classify: [],
   };
 
   async componentDidMount() {
@@ -75,6 +86,12 @@ export default class PressRelease extends React.Component {
     // 使用BraftEditor.createEditorState将html字符串转换为编辑器需要的editorStat
     this.setState({
       content: BraftEditor.createEditorState(htmlContent),
+    });
+    await getTypeName().then(res => {
+      this.setState({
+        classify: res.data.data,
+      });
+      console.log(this.state);
     });
   }
 
@@ -93,8 +110,35 @@ export default class PressRelease extends React.Component {
       infoDate: this.state.infoDate,
       sort: this.state.sort,
     };
-    console.log(data);
-    const result = await saveEditorContent(data);
+    if (this.state.title.length > 50) {
+      message.error('请输入50字以内的标题！');
+      return;
+    }
+    if (this.state.title === '') {
+      message.error('请输入标题！');
+      return;
+    }
+    if (this.state.content.toHTML() === '<p></p>') {
+      message.error('请输入内容！');
+      return;
+    }
+    if (this.state.imgUrl === '') {
+      message.error('请上传缩略图！');
+      return;
+    }
+    if (this.state.type === '') {
+      message.error('请选择分类！');
+      return;
+    }
+    if (this.state.infoDate === '') {
+      message.error('请选择时间！');
+      return;
+    }
+    saveEditorContent(data).then(res => {
+      if (res.data.code === 0) {
+        router.push('/press/press-list');
+      }
+    });
   };
 
   handleImgUrlChange = info => {
@@ -119,7 +163,6 @@ export default class PressRelease extends React.Component {
   };
 
   handleTitleChange = e => {
-    console.log(e.target.value);
     this.setState({
       title: e.target.value,
     });
@@ -133,35 +176,31 @@ export default class PressRelease extends React.Component {
   };
 
   handlehandleClassifyValueChangeChange = e => {
-    console.log('radio1 checked', e.target.value);
     this.setState({
       type: e.target.value,
     });
+    console.log(this.state.type);
   };
 
   handleTopSigntChange = checked => {
     this.setState({
       topSign: checked ? 1 : 0,
     });
-    console.log(`topSign to ${this.state.topSign}`);
   };
 
   handleHomeSigntChange = checked => {
     this.setState({
       homeSign: checked ? 1 : 0,
     });
-    console.log(`homeSign to ${this.state.homeSign}`);
   };
 
   handleStatustChange = checked => {
     this.setState({
       status: checked ? 1 : 0,
     });
-    console.log(`status to ${this.state.status}`);
   };
 
   handleDatePickerChange = (date, dateString) => {
-    console.log(date, dateString);
     this.setState({
       infoDate: dateString,
     });
@@ -194,7 +233,11 @@ export default class PressRelease extends React.Component {
             onChange={this.handleEditorChange}
             onSave={this.submitContent}
           />
+
           <div>
+            缩略图：
+            <br />
+            <br />
             <Upload
               name="avatar"
               listType="picture-card"
@@ -206,17 +249,21 @@ export default class PressRelease extends React.Component {
             >
               {imageUrl ? <img src={imageUrl} alt="avatar" /> : uploadButton}
             </Upload>
+            建议的尺寸（220px *150px）
           </div>
           <br />
           <div>
             分类：
             <Radio.Group
-              defaultValue="a"
+              defaultValue="1"
               buttonStyle="solid"
               onChange={this.handlehandleClassifyValueChangeChange}
             >
-              <Radio.Button value="402807816a8ad7fc016a8ad804480001">科技</Radio.Button>
-              <Radio.Button value="402807816a900b0a016a901168830000">动画</Radio.Button>
+              {/* <Radio.Button value="402807816a8ad7fc016a8ad804480001">科技</Radio.Button>
+              <Radio.Button value="402807816a900b0a016a901168830000">动画</Radio.Button> */}
+              {this.state.classify.map((item, index) => {
+                return <Radio.Button value={item.id}>{item.type}</Radio.Button>;
+              })}
             </Radio.Group>
           </div>
           <br />
@@ -251,10 +298,11 @@ export default class PressRelease extends React.Component {
             咨讯日期：
             <DatePicker
               format="YYYY-MM-DD"
-              disabledDate={disabledDate}
+              // disabledDate={disabledDate}
               onChange={this.handleDatePickerChange}
             />
           </div>
+
           <br />
           <div>
             <Button type="primary" onClick={this.submitContent}>

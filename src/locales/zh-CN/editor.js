@@ -6,6 +6,8 @@ export default {
   'app.editor.mind.title': '脑图编辑器',
   'app.editor.mind.description':
     '脑图是表达发散性思维的有效图形思维工具 ，它简单却又很有效，是一种实用性的思维工具。',
-  'app.editor.editor.title': '编辑新闻',
-  'app.editor.editor.description': '编辑新闻',
+  'app.editor.editor.title': '添加新闻',
+  'app.editor.editor.description': '添加新闻',
+  'app.editor.editpress.title': '编辑新闻',
+  'app.editor.editpress.description': '编辑新闻',
 };

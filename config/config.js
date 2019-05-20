@@ -79,7 +79,7 @@ export default {
     'primary-color': primaryColor,
   },
   proxy: {
-    '/api/': {
+    '/api': {
       target: 'http://www.ilike.vip/website/',
       changeOrigin: true,
       pathRewrite: { '^/api': '' },
@@ -121,7 +121,7 @@ export default {
 
   base: './',
 
-  publicPath: '/admin/',
+  // publicPath: '/admin/',
 
   chainWebpack: webpackPlugin,
 };
